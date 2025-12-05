@@ -1,0 +1,48 @@
+# Publishes flutter_sdk/resume_upload_sdk to pub.dev when a release tag is pushed:
+#   git tag resume_upload_sdk-v1.2.0 && git push origin resume_upload_sdk-v1.2.0
+# The tag's version must match `version:` in the package's pubspec.yaml.
+# pub.dev authenticates the run with a GitHub OIDC token, so there are no secrets.
+# It's enabled on pub.dev under resume_upload_sdk → Admin → Automated publishing
+# (repository lyx501135/resume_upload, tag pattern resume_upload_sdk-v{{version}}).
+name: Publish resume_upload_sdk to pub.dev
+
+on:
+  push:
+    tags:
+      - 'resume_upload_sdk-v[0-9]+.[0-9]+.[0-9]+*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # pub.dev verifies this OIDC token
+    defaults:
+      run:
+        working-directory: flutter_sdk/resume_upload_sdk
+    steps:
+      - uses: actions/checkout@v4
+
+      # Sets up the pub.dev OIDC token that `dart pub publish` uses.
+      - uses: dart-lang/setup-dart@v1
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.50.0
+          cache: true
+
+      - name: Check the tag matches the pubspec version
+        run: |
+          pubspec_version=$(grep -E '^version:' pubspec.yaml | awk '{print $2}')
+          tag_version="${GITHUB_REF_NAME#resume_upload_sdk-v}"
+          if [ "$pubspec_version" != "$tag_version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match pubspec version $pubspec_version"
+            exit 1
+          fi
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: dart pub publish --dry-run
+      - run: dart pub publish --force

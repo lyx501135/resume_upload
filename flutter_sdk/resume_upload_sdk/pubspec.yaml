@@ -1,0 +1,33 @@
+name: resume_upload_sdk
+description: A Flutter SDK for resumable file uploads with chunk-based upload and automatic resume support. Supports pause, resume, cancel, and progress tracking across all platforms.
+version: 1.2.0
+homepage: https://github.com/lyx501135/resume_upload
+repository: https://github.com/lyx501135/resume_upload
+issue_tracker: https://github.com/lyx501135/resume_upload/issues
+topics:
+  - upload
+  - file-upload
+  - resumable
+  - chunk-upload
+
+environment:
+  sdk: '>=3.10.0 <4.0.0'
+  flutter: '>=3.10.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.1.0
+  crypto: ^3.0.3
+  path: ^1.8.3
+  uuid: ^4.2.1
+  shared_preferences: ^2.2.2
+  connectivity_plus: ^7.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+

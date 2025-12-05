@@ -1,0 +1,32 @@
+name: resume_upload_example
+description: A sample Flutter app demonstrating the Resume Upload SDK.
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  resume_upload_sdk:
+    path: ../flutter_sdk/resume_upload_sdk
+  file_picker: ^11.0.0
+  permission_handler: ^11.1.0
+  cupertino_icons: ^1.0.6
+  url_launcher: ^6.2.1
+  http: ^1.1.0
+  material_ui: ^1.11.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  shared_preferences: ^2.5.6
+
+flutter:
+  config:
+    enable-swift-package-manager: true
+  uses-material-design: true
+
