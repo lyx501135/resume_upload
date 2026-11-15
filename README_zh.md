@@ -34,7 +34,7 @@ resume_upload/
 
 ```yaml
 dependencies:
-  resume_upload_sdk: ^1.0.0
+  resume_upload_sdk: 
 ```
 
 ```dart
@@ -62,15 +62,15 @@ python app.py
 
 服务运行在 `http://localhost:8080`，提供以下接口：
 
-| 接口 | 方法 | 说明 |
-|------|------|------|
-| `/api/v1/large_file/upload_file` | POST | 初始化上传 |
-| `/api/v1/large_file/upload_block` | POST | 上传分块 |
-| `/api/v1/uploadFileForLargeFile` | POST | 合并分块 |
-| `/api/v1/files` | GET | 获取文件列表 |
-| `/api/v1/files/<fid>` | GET | 获取文件信息 |
-| `/api/v1/files/<fid>` | DELETE | 删除文件 |
-| `/health` | GET | 健康检查 |
+| 接口                              | 方法   | 说明         |
+| --------------------------------- | ------ | ------------ |
+| `/api/v1/large_file/upload_file`  | POST   | 初始化上传   |
+| `/api/v1/large_file/upload_block` | POST   | 上传分块     |
+| `/api/v1/uploadFileForLargeFile`  | POST   | 合并分块     |
+| `/api/v1/files`                   | GET    | 获取文件列表 |
+| `/api/v1/files/<fid>`             | GET    | 获取文件信息 |
+| `/api/v1/files/<fid>`             | DELETE | 删除文件     |
+| `/health`                         | GET    | 健康检查     |
 
 ## 文档
 

@@ -34,7 +34,7 @@ resume_upload/
 
 ```yaml
 dependencies:
-  resume_upload_sdk: ^1.0.0
+  resume_upload_sdk: 
 ```
 
 ```dart
@@ -62,15 +62,15 @@ python app.py
 
 The server runs on `http://localhost:8080` with the following endpoints:
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/v1/large_file/upload_file` | POST | Initialize upload |
-| `/api/v1/large_file/upload_block` | POST | Upload a chunk |
-| `/api/v1/uploadFileForLargeFile` | POST | Finalize and merge |
-| `/api/v1/files` | GET | List uploaded files |
-| `/api/v1/files/<fid>` | GET | Get file info |
-| `/api/v1/files/<fid>` | DELETE | Delete a file |
-| `/health` | GET | Health check |
+| Endpoint                          | Method | Description         |
+| --------------------------------- | ------ | ------------------- |
+| `/api/v1/large_file/upload_file`  | POST   | Initialize upload   |
+| `/api/v1/large_file/upload_block` | POST   | Upload a chunk      |
+| `/api/v1/uploadFileForLargeFile`  | POST   | Finalize and merge  |
+| `/api/v1/files`                   | GET    | List uploaded files |
+| `/api/v1/files/<fid>`             | GET    | Get file info       |
+| `/api/v1/files/<fid>`             | DELETE | Delete a file       |
+| `/health`                         | GET    | Health check        |
 
 ## Documentation
 
