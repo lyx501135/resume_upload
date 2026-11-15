@@ -1,3 +1,8 @@
+## 1.2.1
+
+- README: the installation snippet no longer hard-codes a version number, so it
+  stays correct in future releases.
+
 ## 1.2.0
 
 Pause, resume and cancel now work as documented.

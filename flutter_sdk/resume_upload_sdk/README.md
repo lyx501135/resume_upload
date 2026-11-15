@@ -39,12 +39,14 @@ Whether you're building a cloud storage app, a media uploader, or an enterprise 
 
 ```yaml
 dependencies:
-  resume_upload_sdk: ^1.1.1
+  resume_upload_sdk:
 ```
 
 ```bash
 flutter pub get
 ```
+
+Or run `flutter pub add resume_upload_sdk`, which adds the latest version constraint for you.
 
 ### Basic Usage
 
@@ -190,12 +192,14 @@ Apache License 2.0 - see [LICENSE](https://github.com/lyx501135/resume_upload/bl
 
 ```yaml
 dependencies:
-  resume_upload_sdk: ^1.1.1
+  resume_upload_sdk:
 ```
 
 ```bash
 flutter pub get
 ```
+
+或者运行 `flutter pub add resume_upload_sdk`，它会自动写入最新的版本约束。
 
 ### 基本用法
 
