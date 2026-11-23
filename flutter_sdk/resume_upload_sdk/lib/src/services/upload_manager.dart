@@ -1,6 +1,9 @@
 import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+
 import '../models/upload_config.dart';
 import '../models/upload_progress.dart';
 import '../models/upload_result.dart';
@@ -32,6 +35,10 @@ class UploadManager {
   /// Device ID for file identification.
   String? _deviceId;
 
+  /// Dio client for the tasks created by this manager; null lets each task
+  /// create its own.
+  Dio? _dio;
+
   /// Map of active upload tasks.
   final Map<String, UploadTask> _tasks = {};
 
@@ -39,8 +46,12 @@ class UploadManager {
   final _uuid = const Uuid();
 
   /// Initializes the upload manager with configuration.
-  Future<void> initialize(UploadConfig config) async {
+  ///
+  /// [dio] is used by every task created afterwards. Leave it out to let each
+  /// task create its own client.
+  Future<void> initialize(UploadConfig config, {Dio? dio}) async {
     _defaultConfig = config;
+    _dio = dio;
     await _loadDeviceId();
   }
 
@@ -65,6 +76,7 @@ class UploadManager {
       filePath: filePath,
       config: config ?? _defaultConfig,
       deviceId: deviceId,
+      dio: _dio,
     );
 
     _tasks[taskId] = task;

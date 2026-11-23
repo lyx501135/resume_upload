@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:http/http.dart' as http;
+
+import 'package:dio/dio.dart';
+
 import '../models/upload_config.dart';
 import '../models/upload_status.dart';
 import '../models/upload_progress.dart';
@@ -9,6 +11,7 @@ import '../models/upload_result.dart';
 import '../models/block_info.dart';
 import '../utils/file_utils_web.dart';
 import '../utils/debug_logger.dart';
+import 'http_options.dart';
 
 /// Why the block loop stopped.
 enum _LoopOutcome { completed, paused, cancelled, failed }
@@ -67,8 +70,11 @@ class UploadTaskWeb {
   /// Current upload speed.
   double _currentSpeed = 0;
 
-  /// HTTP client.
-  final http.Client _httpClient = http.Client();
+  /// HTTP client: the one passed to the constructor, or one created for this task.
+  final Dio _dio;
+
+  /// Whether [_dio] was created by this task, so [dispose] closes it.
+  final bool _ownsDio;
 
   /// Whether the upload is paused.
   bool _isPaused = false;
@@ -86,13 +92,17 @@ class UploadTaskWeb {
   /// CRC32 of the whole file, computed once.
   int? _fileCrc;
 
+  /// [dio] is used for every request. Pass one to share a client or to fake
+  /// the server in tests; a task that creates its own closes it on [dispose].
   UploadTaskWeb({
     required this.taskId,
     required this.fileData,
     required this.fileName,
     required this.config,
     required this.deviceId,
-  }) {
+    Dio? dio,
+  }) : _dio = dio ?? Dio(),
+       _ownsDio = dio == null {
     _fileSize = fileData.length;
     _blockSize = FileUtilsWeb.getBlockSize(_fileSize);
     _blockCount = FileUtilsWeb.getBlockCount(_fileSize);
@@ -252,22 +262,21 @@ class UploadTaskWeb {
         'blockSize': _blockSize.toString(),
       };
 
-      final uri = Uri.parse(
-        '${config.baseUrl}/api/v1/large_file/upload_file',
-      ).replace(queryParameters: queryParams);
+      final uri = Uri.parse('${config.baseUrl}/api/v1/large_file/upload_file')
+          .replace(queryParameters: queryParams);
 
-      final response = await _httpClient
-          .post(
+      final response = await _dio
+          .postUri<String>(
             uri,
-            headers: {
+            options: uploadRequestOptions({
               'Content-Type': 'application/octet-stream',
               ...?config.headers,
-            },
+            }),
           )
           .timeout(Duration(seconds: config.timeoutSeconds));
 
       if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
+        final json = jsonDecode(response.data ?? '');
         if (json['rtnCode'] == '0000000' || json['rtnCode'] == 0) {
           _fileInfo = FileInfoResponse.fromJson(
             json['bizData'] as Map<String, dynamic>,
@@ -352,23 +361,22 @@ class UploadTaskWeb {
         'crc': blockCrc.toString(),
       };
 
-      final uri = Uri.parse(
-        '${config.baseUrl}/api/v1/large_file/upload_block',
-      ).replace(queryParameters: queryParams);
+      final uri = Uri.parse('${config.baseUrl}/api/v1/large_file/upload_block')
+          .replace(queryParameters: queryParams);
 
-      final request = http.Request('POST', uri);
-      request.headers['Content-Type'] = 'application/octet-stream';
-      if (config.headers != null) request.headers.addAll(config.headers!);
-      request.bodyBytes = blockData;
-
-      final streamedResponse = await _httpClient
-          .send(request)
+      final response = await _dio
+          .postUri<String>(
+            uri,
+            data: blockData,
+            options: uploadRequestOptions({
+              'Content-Type': 'application/octet-stream',
+              ...?config.headers,
+            }),
+          )
           .timeout(Duration(seconds: config.timeoutSeconds * 2));
 
-      final response = await http.Response.fromStream(streamedResponse);
-
       if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
+        final json = jsonDecode(response.data ?? '');
         if (json['rtnCode'] == '0000000' || json['rtnCode'] == 0) {
           _fileInfo = FileInfoResponse.fromJson(
             json['bizData'] as Map<String, dynamic>,
@@ -403,22 +411,21 @@ class UploadTaskWeb {
         queryParams['bizSystem'] = config.bizSystem!;
       }
 
-      final uri = Uri.parse(
-        '${config.baseUrl}/api/v1/uploadFileForLargeFile',
-      ).replace(queryParameters: queryParams);
+      final uri = Uri.parse('${config.baseUrl}/api/v1/uploadFileForLargeFile')
+          .replace(queryParameters: queryParams);
 
-      final response = await _httpClient
-          .post(
+      final response = await _dio
+          .postUri<String>(
             uri,
-            headers: {
+            options: uploadRequestOptions({
               'Content-Type': 'application/octet-stream',
               ...?config.headers,
-            },
+            }),
           )
           .timeout(Duration(seconds: config.timeoutSeconds));
 
       if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
+        final json = jsonDecode(response.data ?? '');
         if (json['rtnCode'] == '0000000' || json['rtnCode'] == 0) {
           final bizData = json['bizData'] as Map<String, dynamic>;
           final fileData = bizData['file'] as Map<String, dynamic>;
@@ -508,6 +515,6 @@ class UploadTaskWeb {
       ),
     );
     _progressController.close();
-    _httpClient.close();
+    if (_ownsDio) _dio.close();
   }
 }

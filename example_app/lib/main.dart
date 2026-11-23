@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:resume_upload_sdk/resume_upload_sdk.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 
 void main() {
   runApp(const MyApp());
@@ -42,7 +42,10 @@ class MyApp extends StatelessWidget {
 }
 
 class UploadPage extends StatefulWidget {
-  const UploadPage({super.key});
+  const UploadPage({super.key, this.dio});
+
+  /// Client for the upload SDK and the server calls. Defaults to a new [Dio].
+  final Dio? dio;
 
   @override
   State<UploadPage> createState() => _UploadPageState();
@@ -51,6 +54,16 @@ class UploadPage extends StatefulWidget {
 class _UploadPageState extends State<UploadPage> {
   final TextEditingController _serverUrlController = TextEditingController(
     text: 'http://localhost:8080',
+  );
+
+  /// Closed in [dispose] only when this page created it.
+  late final Dio _dio = widget.dio ?? Dio();
+
+  /// Reads the body as text and does not throw on an error status, so the
+  /// status code is checked by hand.
+  static final _plainOptions = Options(
+    responseType: ResponseType.plain,
+    validateStatus: (_) => true,
   );
 
   String? _selectedFilePath;
@@ -123,6 +136,7 @@ class _UploadPageState extends State<UploadPage> {
           productCode: 'demo',
           bizSystem: 'demo',
         ),
+        dio: _dio,
       );
       if (mounted) setState(() => _isInitialized = true);
     } catch (e) {
@@ -132,17 +146,13 @@ class _UploadPageState extends State<UploadPage> {
 
   Future<void> _pickFile() async {
     try {
-      final result = await FilePicker.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-      );
+      final file = await FilePicker.pickFile(type: FileType.any);
 
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
+      if (file != null) {
         setState(() {
           _selectedFilePath = file.path;
           _selectedFileName = file.name;
-          _selectedFileSize = file.size;
+          _selectedFileSize = file.lengthSync();
           _lastResult = null;
           _currentProgress = null;
           _logs.clear();
@@ -178,6 +188,7 @@ class _UploadPageState extends State<UploadPage> {
           productCode: 'demo',
           bizSystem: 'demo',
         ),
+        dio: _dio,
       );
 
       // Release the previous task before starting a new one.
@@ -382,10 +393,13 @@ class _UploadPageState extends State<UploadPage> {
     try {
       // Get list of all files from server
       final listUri = Uri.parse('${_serverUrlController.text}/api/v1/files');
-      final listResponse = await http.get(listUri);
+      final listResponse = await _dio.getUri<String>(
+        listUri,
+        options: _plainOptions,
+      );
 
       if (listResponse.statusCode == 200) {
-        final json = jsonDecode(listResponse.body);
+        final json = jsonDecode(listResponse.data ?? '');
         final files = json['bizData'] as List<dynamic>? ?? [];
 
         int deletedCount = 0;
@@ -396,7 +410,10 @@ class _UploadPageState extends State<UploadPage> {
           if (fid != null) {
             try {
               final deleteUri = Uri.parse('${_serverUrlController.text}/api/v1/files/$fid');
-              final deleteResponse = await http.delete(deleteUri);
+              final deleteResponse = await _dio.deleteUri<String>(
+                deleteUri,
+                options: _plainOptions,
+              );
               if (deleteResponse.statusCode == 200) {
                 deletedCount++;
               }
@@ -1663,6 +1680,7 @@ class _UploadPageState extends State<UploadPage> {
     _memorySubscription?.cancel();
     _memoryTimer?.cancel();
     _currentTask?.dispose();
+    if (widget.dio == null) _dio.close();
     super.dispose();
   }
 }

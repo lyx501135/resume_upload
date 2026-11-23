@@ -1,55 +1,39 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 import 'upload_status.dart';
 
+part 'block_info.freezed.dart';
+part 'block_info.g.dart';
+
 /// Information about a file block.
-class BlockInfo {
-  /// Block index (0-based).
-  final int index;
+@freezed
+abstract class BlockInfo with _$BlockInfo {
+  const BlockInfo._();
 
-  /// CRC32 checksum of the block.
-  final int crc;
+  const factory BlockInfo({
+    /// Block index (0-based).
+    required int index,
 
-  /// Block status.
-  final BlockStatus status;
+    /// CRC32 checksum of the block.
+    @JsonKey(fromJson: _intFromJson) required int crc,
 
-  /// Range of data uploaded (for partial uploads).
-  final String? range;
+    /// Block status.
+    @JsonKey(fromJson: _blockStatusFromJson, toJson: _blockStatusToJson)
+    required BlockStatus status,
 
-  /// Size of this block in bytes.
-  final int size;
+    /// Range of data uploaded (for partial uploads).
+    String? range,
 
-  const BlockInfo({
-    required this.index,
-    required this.crc,
-    required this.status,
-    this.range,
-    required this.size,
-  });
+    /// Size of this block in bytes. Read from [range] when parsing JSON, and
+    /// not written to JSON.
+    @JsonKey(readValue: _sizeFromRange, includeToJson: false)
+    @Default(0)
+    int size,
+  }) = _BlockInfo;
 
   /// Creates from JSON map.
-  factory BlockInfo.fromJson(Map<String, dynamic> json) => BlockInfo(
-    index: json['index'] as int,
-    crc: json['crc'] is String
-        ? int.parse(json['crc'] as String)
-        : json['crc'] as int,
-    status: BlockStatus.fromValue(json['status'] as int),
-    range: json['range'] as String?,
-    size: _parseSizeFromRange(json['range'] as String?),
-  );
-
-  static int _parseSizeFromRange(String? range) {
-    if (range == null) return 0;
-    final parts = range.split('-');
-    if (parts.length == 2) return int.tryParse(parts[1]) ?? 0;
-    return 0;
-  }
-
-  /// Converts to JSON map.
-  Map<String, dynamic> toJson() => {
-    'index': index,
-    'crc': crc,
-    'status': status.value,
-    'range': range,
-  };
+  factory BlockInfo.fromJson(Map<String, dynamic> json) =>
+      _$BlockInfoFromJson(json);
 
   @override
   String toString() =>
@@ -57,86 +41,53 @@ class BlockInfo {
 }
 
 /// File information response from server.
-class FileInfoResponse {
-  /// File unique identifier.
-  final String fid;
+@freezed
+abstract class FileInfoResponse with _$FileInfoResponse {
+  const FileInfoResponse._();
 
-  /// File status.
-  final FileStatus fstatus;
+  const factory FileInfoResponse({
+    /// File unique identifier.
+    required String fid,
 
-  /// File name.
-  final String? fileName;
+    /// File status.
+    @JsonKey(fromJson: _fileStatusFromJson, toJson: _fileStatusToJson)
+    required FileStatus fstatus,
 
-  /// File size in bytes.
-  final int fileSize;
+    /// File name.
+    String? fileName,
 
-  /// Block size used.
-  final int blockSize;
+    /// File size in bytes.
+    required int fileSize,
 
-  /// Total block count.
-  final int blockCount;
+    /// Block size used.
+    required int blockSize,
 
-  /// File CRC.
-  final int fcrc;
+    /// Total block count.
+    required int blockCount,
 
-  /// File extension.
-  final String? fileExt;
+    /// File CRC.
+    @JsonKey(fromJson: _intFromJson) required int fcrc,
 
-  /// File URL (if completed).
-  final String? furl;
+    /// File extension.
+    String? fileExt,
 
-  /// Map of uploaded blocks.
-  final Map<String, BlockInfo> blockMap;
+    /// File URL (if completed).
+    String? furl,
 
-  /// File creation date timestamp.
-  final int? createDate;
+    /// Map of uploaded blocks.
+    @JsonKey(fromJson: _blockMapFromJson, toJson: _blockMapToJson)
+    required Map<String, BlockInfo> blockMap,
 
-  /// File last modified date timestamp.
-  final int? lastModifyDate;
+    /// File creation date timestamp.
+    int? createDate,
 
-  const FileInfoResponse({
-    required this.fid,
-    required this.fstatus,
-    this.fileName,
-    required this.fileSize,
-    required this.blockSize,
-    required this.blockCount,
-    required this.fcrc,
-    this.fileExt,
-    this.furl,
-    required this.blockMap,
-    this.createDate,
-    this.lastModifyDate,
-  });
+    /// File last modified date timestamp.
+    int? lastModifyDate,
+  }) = _FileInfoResponse;
 
   /// Creates from JSON map.
-  factory FileInfoResponse.fromJson(Map<String, dynamic> json) {
-    final blockMapJson = json['blockMap'] as Map<String, dynamic>? ?? {};
-    final blockMap = <String, BlockInfo>{};
-
-    blockMapJson.forEach((key, value) {
-      if (value is Map<String, dynamic>) {
-        blockMap[key] = BlockInfo.fromJson(value);
-      }
-    });
-
-    return FileInfoResponse(
-      fid: json['fid'] as String,
-      fstatus: FileStatus.fromValue(json['fstatus'] as int),
-      fileName: json['fileName'] as String?,
-      fileSize: json['fileSize'] as int,
-      blockSize: json['blockSize'] as int,
-      blockCount: json['blockCount'] as int,
-      fcrc: json['fcrc'] is String
-          ? int.parse(json['fcrc'] as String)
-          : json['fcrc'] as int,
-      fileExt: json['fileExt'] as String?,
-      furl: json['furl'] as String?,
-      blockMap: blockMap,
-      createDate: json['createDate'] as int?,
-      lastModifyDate: json['lastModifyDate'] as int?,
-    );
-  }
+  factory FileInfoResponse.fromJson(Map<String, dynamic> json) =>
+      _$FileInfoResponseFromJson(json);
 
   /// Gets the next block index to upload.
   int getNextBlockIndex() {
@@ -164,3 +115,45 @@ class FileInfoResponse {
   String toString() =>
       'FileInfoResponse(fid: $fid, fstatus: $fstatus, uploadedBlocks: ${getUploadedBlockCount()}/$blockCount)';
 }
+
+// The size is the second half of "start-end" in range, or 0 if there is none.
+Object? _sizeFromRange(Map<dynamic, dynamic> json, String key) {
+  final range = json['range'] as String?;
+  if (range == null) return 0;
+  final parts = range.split('-');
+  if (parts.length == 2) return int.tryParse(parts[1]) ?? 0;
+  return 0;
+}
+
+// The server sends some numbers as strings and some as numbers.
+int _intFromJson(Object? value) =>
+    value is String ? int.parse(value) : value as int;
+
+// Unknown values map to the enum's default, as fromValue always did.
+BlockStatus _blockStatusFromJson(Object? value) =>
+    BlockStatus.fromValue(value as int);
+
+int _blockStatusToJson(BlockStatus status) => status.value;
+
+FileStatus _fileStatusFromJson(Object? value) =>
+    FileStatus.fromValue(value as int);
+
+int _fileStatusToJson(FileStatus status) => status.value;
+
+// A missing or null blockMap is empty, and entries that are not objects are skipped.
+Map<String, BlockInfo> _blockMapFromJson(Object? value) {
+  final blockMapJson = value as Map<String, dynamic>? ?? {};
+  final blockMap = <String, BlockInfo>{};
+
+  blockMapJson.forEach((key, entry) {
+    if (entry is Map<String, dynamic>) {
+      blockMap[key] = BlockInfo.fromJson(entry);
+    }
+  });
+
+  return blockMap;
+}
+
+Map<String, dynamic> _blockMapToJson(Map<String, BlockInfo> blockMap) => {
+  for (final entry in blockMap.entries) entry.key: entry.value.toJson(),
+};

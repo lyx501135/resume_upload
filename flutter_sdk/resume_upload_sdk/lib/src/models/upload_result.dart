@@ -1,31 +1,31 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'upload_result.freezed.dart';
+
 /// Result of a completed upload.
-class UploadResult {
-  /// Whether the upload was successful.
-  final bool success;
+@freezed
+abstract class UploadResult with _$UploadResult {
+  const UploadResult._();
 
-  /// The unique file identifier.
-  final String fileId;
+  const factory UploadResult({
+    /// Whether the upload was successful.
+    required bool success,
 
-  /// The URL where the file can be accessed.
-  final String? fileUrl;
+    /// The unique file identifier.
+    required String fileId,
 
-  /// The server-assigned file ID.
-  final int? serverId;
+    /// The URL where the file can be accessed.
+    String? fileUrl,
 
-  /// Error message if the upload failed.
-  final String? errorMessage;
+    /// The server-assigned file ID.
+    int? serverId,
 
-  /// Additional metadata from the server.
-  final Map<String, dynamic>? metadata;
+    /// Error message if the upload failed.
+    String? errorMessage,
 
-  const UploadResult({
-    required this.success,
-    required this.fileId,
-    this.fileUrl,
-    this.serverId,
-    this.errorMessage,
-    this.metadata,
-  });
+    /// Additional metadata from the server.
+    Map<String, dynamic>? metadata,
+  }) = _UploadResult;
 
   /// Creates a successful result.
   factory UploadResult.success({

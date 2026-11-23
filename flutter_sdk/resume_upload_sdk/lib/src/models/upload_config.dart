@@ -1,72 +1,41 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'upload_config.freezed.dart';
+
 /// Configuration for the upload SDK.
-class UploadConfig {
-  /// Base URL for the upload server.
-  final String baseUrl;
+@freezed
+abstract class UploadConfig with _$UploadConfig {
+  const UploadConfig._();
 
-  /// Timeout for HTTP requests in seconds.
-  final int timeoutSeconds;
+  const factory UploadConfig({
+    /// Base URL for the upload server.
+    required String baseUrl,
 
-  /// Maximum number of retry attempts for failed uploads.
-  final int maxRetries;
+    /// Timeout for HTTP requests in seconds.
+    @Default(30) int timeoutSeconds,
 
-  /// Delay between retries in milliseconds.
-  final int retryDelayMs;
+    /// Maximum number of retry attempts for failed uploads.
+    @Default(3) int maxRetries,
 
-  /// Custom headers to include in requests.
-  final Map<String, String>? headers;
+    /// Delay between retries in milliseconds.
+    @Default(1000) int retryDelayMs,
 
-  /// User ID for the upload (optional).
-  final String? userId;
-
-  /// Product code (optional).
-  final String? productCode;
-
-  /// Business system identifier (optional).
-  final String? bizSystem;
-
-  /// Directory ID for storage (optional).
-  final String? dirId;
-
-  /// Whether to use random file names.
-  final bool isRandomName;
-
-  const UploadConfig({
-    required this.baseUrl,
-    this.timeoutSeconds = 30,
-    this.maxRetries = 3,
-    this.retryDelayMs = 1000,
-    this.headers,
-    this.userId,
-    this.productCode,
-    this.bizSystem,
-    this.dirId,
-    this.isRandomName = false,
-  });
-
-  /// Creates a copy with modified fields.
-  UploadConfig copyWith({
-    String? baseUrl,
-    int? timeoutSeconds,
-    int? maxRetries,
-    int? retryDelayMs,
+    /// Custom headers to include in requests.
     Map<String, String>? headers,
+
+    /// User ID for the upload (optional).
     String? userId,
+
+    /// Product code (optional).
     String? productCode,
+
+    /// Business system identifier (optional).
     String? bizSystem,
+
+    /// Directory ID for storage (optional).
     String? dirId,
-    bool? isRandomName,
-  }) {
-    return UploadConfig(
-      baseUrl: baseUrl ?? this.baseUrl,
-      timeoutSeconds: timeoutSeconds ?? this.timeoutSeconds,
-      maxRetries: maxRetries ?? this.maxRetries,
-      retryDelayMs: retryDelayMs ?? this.retryDelayMs,
-      headers: headers ?? this.headers,
-      userId: userId ?? this.userId,
-      productCode: productCode ?? this.productCode,
-      bizSystem: bizSystem ?? this.bizSystem,
-      dirId: dirId ?? this.dirId,
-      isRandomName: isRandomName ?? this.isRandomName,
-    );
-  }
+
+    /// Whether to use random file names.
+    @Default(false) bool isRandomName,
+  }) = _UploadConfig;
 }

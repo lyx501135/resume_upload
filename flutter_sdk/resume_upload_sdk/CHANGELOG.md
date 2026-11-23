@@ -1,3 +1,21 @@
+## 1.3.0
+
+- Requires Dart 3.14 / Flutter 3.50 or newer (`sdk: ^3.14.0`).
+
+- Replaced the `http` dependency with `dio`. Requests keep the same URLs,
+  query parameters, headers, timeouts and retry behaviour; a non-2xx response
+  is still a failed block or step, not an exception.
+- **API change:** `UploadTask`, `UploadTaskWeb` and `UploadManager.initialize`
+  take an optional `Dio dio` argument, so you can share a client or fake the
+  server in tests. Without it, each task creates its own `Dio` and closes it on
+  `dispose()`. A `Dio` you pass in is never closed by the SDK.
+- The data models (`UploadConfig`, `UploadProgress`, `UploadResult`,
+  `BlockInfo`, `FileInfoResponse`) are generated with freezed and
+  json_serializable. The JSON keys and values are unchanged. They now also have
+  `==`/`hashCode`, and `FileInfoResponse` has a `toJson()`.
+- **Behavior change:** `copyWith(field: null)` now sets a nullable field to
+  `null`. Previously a `null` argument kept the current value.
+
 ## 1.2.1
 
 - README: the installation snippet no longer hard-codes a version number, so it

@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+
 import '../models/upload_config.dart';
 import '../models/upload_status.dart';
 import '../models/upload_progress.dart';
@@ -13,6 +15,7 @@ import '../models/block_info.dart';
 import '../utils/file_utils.dart';
 import '../utils/crc32.dart';
 import '../utils/debug_logger.dart';
+import 'http_options.dart';
 
 /// Memory info for monitoring.
 class MemoryInfo {
@@ -361,8 +364,11 @@ class UploadTask {
   /// Current upload speed.
   double _currentSpeed = 0;
 
-  /// HTTP client.
-  final http.Client _httpClient = http.Client();
+  /// HTTP client: the one passed to the constructor, or one created for this task.
+  final Dio _dio;
+
+  /// Whether [_dio] was created by this task, so [dispose] closes it.
+  final bool _ownsDio;
 
   /// Whether the upload is paused.
   bool _isPaused = false;
@@ -389,12 +395,16 @@ class UploadTask {
   /// CRC32 of the whole file, computed once per start().
   int? _fileCrc;
 
+  /// [dio] is used for every request. Pass one to share a client or to fake
+  /// the server in tests; a task that creates its own closes it on [dispose].
   UploadTask({
     required this.taskId,
     required this.filePath,
     required this.config,
     required this.deviceId,
-  });
+    Dio? dio,
+  }) : _dio = dio ?? Dio(),
+       _ownsDio = dio == null;
 
   /// Gets the progress stream.
   Stream<UploadProgress> get progressStream => _progressController.stream;
@@ -888,22 +898,21 @@ class UploadTask {
         'blockSize': _blockSize.toString(),
       };
 
-      final uri = Uri.parse(
-        '${config.baseUrl}/api/v1/large_file/upload_file',
-      ).replace(queryParameters: queryParams);
+      final uri = Uri.parse('${config.baseUrl}/api/v1/large_file/upload_file')
+          .replace(queryParameters: queryParams);
 
-      final response = await _httpClient
-          .post(
+      final response = await _dio
+          .postUri<String>(
             uri,
-            headers: {
+            options: uploadRequestOptions({
               'Content-Type': 'application/octet-stream',
               ...?config.headers,
-            },
+            }),
           )
           .timeout(Duration(seconds: config.timeoutSeconds));
 
       if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
+        final json = jsonDecode(response.data ?? '');
         if (json['rtnCode'] == '0000000' || json['rtnCode'] == 0) {
           _fileInfo = FileInfoResponse.fromJson(
             json['bizData'] as Map<String, dynamic>,
@@ -1014,35 +1023,34 @@ class UploadTask {
         'crc': blockCrc.toString(),
       };
 
-      final uri = Uri.parse(
-        '${config.baseUrl}/api/v1/large_file/upload_block',
-      ).replace(queryParameters: queryParams);
+      final uri = Uri.parse('${config.baseUrl}/api/v1/large_file/upload_block')
+          .replace(queryParameters: queryParams);
 
       _logDebug('Uploading block $blockIndex to server...');
-      final request = http.Request('POST', uri);
-      request.headers['Content-Type'] = 'application/octet-stream';
-      if (config.headers != null) request.headers.addAll(config.headers!);
 
-      // Step 3: Assign block data to request
-      request.bodyBytes = blockData;
-
-      // Step 4: Send request
-      final streamedResponse = await _httpClient
-          .send(request)
+      // Steps 3-4: Send the block bytes as the request body
+      final response = await _dio
+          .postUri<String>(
+            uri,
+            data: blockData,
+            options: uploadRequestOptions({
+              'Content-Type': 'application/octet-stream',
+              ...?config.headers,
+            }),
+          )
           .timeout(Duration(seconds: config.timeoutSeconds * 2));
 
-      // Step 5: Clear local reference to allow GC (request has its own copy)
+      // Step 5: Clear local reference to allow GC (the request has its own copy)
       blockData = null;
       _logDebug(
         'Block $blockIndex data sent, local reference cleared',
         includeMemory: true,
       );
 
-      final response = await http.Response.fromStream(streamedResponse);
       final blockDuration = DateTime.now().difference(blockStartTime);
 
       if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
+        final json = jsonDecode(response.data ?? '');
         if (json['rtnCode'] == '0000000' || json['rtnCode'] == 0) {
           _fileInfo = FileInfoResponse.fromJson(
             json['bizData'] as Map<String, dynamic>,
@@ -1107,23 +1115,22 @@ class UploadTask {
         queryParams['bizSystem'] = config.bizSystem!;
       }
 
-      final uri = Uri.parse(
-        '${config.baseUrl}/api/v1/uploadFileForLargeFile',
-      ).replace(queryParameters: queryParams);
+      final uri = Uri.parse('${config.baseUrl}/api/v1/uploadFileForLargeFile')
+          .replace(queryParameters: queryParams);
 
       _logDebug('Sending finalize request...');
-      final response = await _httpClient
-          .post(
+      final response = await _dio
+          .postUri<String>(
             uri,
-            headers: {
+            options: uploadRequestOptions({
               'Content-Type': 'application/octet-stream',
               ...?config.headers,
-            },
+            }),
           )
           .timeout(Duration(seconds: config.timeoutSeconds));
 
       if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
+        final json = jsonDecode(response.data ?? '');
         if (json['rtnCode'] == '0000000' || json['rtnCode'] == 0) {
           final bizData = json['bizData'] as Map<String, dynamic>;
           final fileData = bizData['file'] as Map<String, dynamic>;
@@ -1268,6 +1275,6 @@ class UploadTask {
     _progressController.close();
     _logController.close();
     _memoryController.close();
-    _httpClient.close();
+    if (_ownsDio) _dio.close();
   }
 }

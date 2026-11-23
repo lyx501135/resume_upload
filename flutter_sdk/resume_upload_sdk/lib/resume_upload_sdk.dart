@@ -5,7 +5,7 @@
 ///
 /// Supports iOS, macOS, Android, Windows and Linux. [UploadTaskWeb] uploads
 /// in-memory bytes instead of a file path.
-library resume_upload_sdk;
+library;
 
 export 'src/models/upload_config.dart';
 export 'src/models/upload_status.dart';

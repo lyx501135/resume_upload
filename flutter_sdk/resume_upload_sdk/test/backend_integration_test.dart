@@ -6,7 +6,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 import 'package:resume_upload_sdk/resume_upload_sdk.dart';
 
 final _backendUrl = Platform.environment['RESUME_UPLOAD_BACKEND_URL'];
@@ -47,8 +47,18 @@ void main() {
         ..enableNetworkMonitoring = false
         ..enableLogging = false;
 
-  Future<Uint8List> download(UploadResult result) async =>
-      (await http.get(Uri.parse('$_backendUrl${result.fileUrl}'))).bodyBytes;
+  Future<Uint8List> download(UploadResult result) async {
+    final dio = Dio();
+    try {
+      final response = await dio.getUri<List<int>>(
+        Uri.parse('$_backendUrl${result.fileUrl}'),
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return Uint8List.fromList(response.data!);
+    } finally {
+      dio.close();
+    }
+  }
 
   test('uploads a file and the backend serves identical bytes', () async {
     final (file, data) = await makeFile(5 * 1024 * 1024, 1);
